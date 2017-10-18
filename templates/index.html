@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tornado WebSockets</title>
+    <script>
+
+        function Connector(wsurl) {
+            namespace = ""
+            if(arguments.length > 1){
+                wsurl += "/" + arguments[1];
+                //alert(wsurl);
+            }
+            this.protocol = "bla";
+            this.socket = new WebSocket(wsurl, this.protocol);
+        }
+
+        Connector.prototype.emit = function(msg) {
+
+            var self = this;
+
+            (function _waitForSocketConnection(callback) {
+                setTimeout(function() {
+                    if (self.socket.readyState === 1) {
+                        console.log("Connection is made")
+                        if (callback != null) {
+                            callback();
+                        }
+                        return;
+
+                    } else {
+                        console.log("wait for connection...")
+                        _waitForSocketConnection(callback);
+                    }
+                }, 5);
+            })(function() {
+                console.log("message sent!!!");
+                self.socket.send(msg);
+            });
+        }
+
+
+        //var con = new Connector("ws://" + document.domain + ":" + location.port, "websocket");
+        //var con = new Connector("ws://" + window.location.host, "ws");
+
+        //con.emit('abc');
+        //or even worst
+        //new Connector("ws://echo.websocket.org").emit('def');
+
+//#################################################################
+
+    function emit(message, data){
+        var json = JSON.stringify({0:message, 1: data})
+        ws.send(json);
+    }
+
+//#################################################################
+
+        var ws;
+
+        function onLoad() {
+            ws = new WebSocket("ws://localhost:8000/websocket");
+
+            ws.onmessage = function(e) {
+               alert(e.data);
+            };
+        }
+
+        function sendMsg() {
+            var name = document.getElementById('txt_user').value;
+            var message = document.getElementById('msg').value;
+            var json = JSON.stringify({"name":name, "message": message})
+            emit("new message", json)
+            //ws.send(json);
+            //con.emit(json)
+        }
+
+
+
+    </script>
+</head>
+<body onload="onLoad();">
+    <input type="text" name="txt_user" id="txt_user" /> <strong>Message to Send:</strong>&nbsp;<input type="text" id="msg" maxlength="25" />
+    &nbsp;<input type="button" onclick="sendMsg();" value="Send" />
+    <br />
+    <ul>
+        {% if chats %}
+            <!--{{ chats }}-->
+            {% for chat in chats %}
+                <hr/>
+            <li> {{ chat['name'] }} - {{ chat['message'] }} </li>
+            {% end %}
+        {% end %}
+
+    </ul>
+</body>
+</html>

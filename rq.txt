@@ -1,0 +1,4 @@
+Jinja2==2.9.6
+MarkupSafe==1.0
+rethinkdb==2.3.0.post6
+tornado==4.5.2
