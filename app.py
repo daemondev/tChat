@@ -3,7 +3,6 @@ import tornado.websocket
 import tornado.httpserver
 import tornado.ioloop
 from tornado.escape import json_encode
-
 from tornado import gen
 
 import json
@@ -22,7 +21,6 @@ from rethinkdb import RqlRuntimeError, RqlDriverError
 #-------------------------------------------------- BEGIN [DEV MODE] - (19-10-2017 - 11:00:51) {{
 #import tornado.wsgi
 #-------------------------------------------------- END   [DEV MODE] - (19-10-2017 - 11:00:51) }}
-
 
 r.set_loop_type("tornado")
 
@@ -57,6 +55,11 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         connections.remove(self)
         pass
 
+    def check_origin(self, origin):
+        #parsed_origin = urllib.parse.urlparse(origin)
+        #return parsed_origin.netloc.endswith(".mydomain.com")
+        return True
+
 import pyscreenshot
 from io import BytesIO
 
@@ -72,19 +75,13 @@ def sendDesktop():
             print("\nconexiones WS: %d\n" % len(connections))
 
             img_buffer = BytesIO()
-            pyscreenshot.grab().save(img_buffer, 'PNG', quality=5)
+            pyscreenshot.grab().save(img_buffer, 'PNG', quality=0.1)
             img_buffer.seek(0)
             s = img_buffer.getvalue()
 
             for c in connections:
-                #print("send to: ", c)
-                #print("send data: ", s)
-                #c.write_message("step %d" % a) #"""
-                #c.write_message(s) #"""
-                #payload = {"event": "show desktop", "data": base64.b64encode(s)}
-                #payload = {"event":"show desktop", "data": "dsd"}
-                #c.write_message(payload) #"""
-                c.write_message(base64.b64encode(s)) #"""
+                payload = {"event": "show desktop", "data": str(base64.b64encode(s))}
+                c.write_message(payload) #"""
         yield gen.sleep(0.5)
         #yield gen.sleep(1.5)
         print(">>> end step: %d" % a)
@@ -102,9 +99,7 @@ def watch_chats():
         for c in connections:
             change['new_val']['created'] = str(change['new_val']['created'])
             payload = {"event":"new chat","data": change["new_val"]}
-            #c.write_message(change)
             c.write_message(payload)
-            #c.write_message(json.dumps(change))
         print(change)
         print("watching db CHANGES ############")
 
@@ -149,7 +144,6 @@ def get(self):
                 break
             self.write(data)
     self.finish()
-
 
 class IndexPageHandler(tornado.web.RequestHandler):
     @gen.coroutine
@@ -201,7 +195,7 @@ class Application(tornado.web.Application):
 
 
         settings = {
-            "cookie_secret": "__TODO:_MDY_BPO_pyCHAT_APP__",
+            "cookie_secret": "__myKEY:_MDY_BPO_pyCHAT_APP__",
             "login_url": "/login",
             "xsrf_cookies": True,
             "static_path": os.path.join(os.path.dirname(__file__), "static"),
@@ -285,3 +279,5 @@ if __name__ == '__main__':
 
 #http://aybabtu.dk/blog/sending-an-image-through-websockets/
 #http://laht.info/sending-images-over-websockets-in-python-2-7/
+#https://stackoverflow.com/questions/9546437/how-send-arraybuffer-as-binary-via-websocket # send image
+#https://www.browserling.com/tools/js-minify

@@ -1,6 +1,6 @@
-{% extends 'layout.html' %}
-{% block head %}
-
+<!DOCTYPE html>
+<html>
+<head>
     <title>Tornado WebSockets</title>
     <script type="text/javascript" src="/static/js/jquery.js"></script>
     <script type="text/javascript" src="/static/js/axios.min.js"></script>
@@ -68,7 +68,11 @@
     function setImage(data){
         var len = data.length - 3;
         data = data.substr(2, len);
+        //document.images["screen"].src = URL.createObjectURL(data);
         document.images["screen"].src = "data:image/png;base64," + data; //run
+        //document.images["screen"].src = "data:image/png;base64," + Base64.encode(data);
+        //document.images["screen"].src = "data:image/png;base64," + window.btoa(data);
+        //document.images["screen"].src = "data:image/png;base64," + window.atob(data);
     }
 
 
@@ -88,13 +92,13 @@
     }
 
     function on(event, data){
-        //Object.keys(e).map(d => console.log(`key=${d}  value=${e[d]}`));
         if (event == "new chat"){
             var chatList = document.getElementById("chat-list");
             var messageBox = document.getElementById("txt_message");
             messageBox.value = "";
             chatList.innerHTML = "<li class='collection-item'>" + data.name + " - " + data.message + "</li><hr />" + chatList.innerHTML;
         } else if(event = "show desktop"){
+            //alert(data);
             setImage(data);
         }
     }
@@ -110,32 +114,67 @@
             ws = new WebSocket(protocol + document.domain + port + namespace);
 
             ws.onmessage = function(e) {
+                ///*
+                var rawData = e.data;
                 var data = eval('(' + e.data + ')');
-                on(data["event"], data["data"]);
+                //var data = JSON.parse(e.data);
+
+                //var data = JSON.parse(JSON.stringify(e.data, ['event', 'data']);
+                //var data = JSON.parse(JSON.stringify(e.data));
+                //var data = JSON.stringify(e.data);
+                //alert(typeof e);
+
+                if(flag){
+                    for (var property in e) {
+                        //if (e.hasOwnProperty(property)) {
+                            //console.log(e.property);
+                            //console.log(property);
+                        //}
+                    }
+                    flag = true;
+                    Object.keys(e).map(d => console.log(`key=${d}  value=${e[d]}`));
+                }
+
+                /*
+                if(typeof data['data'] == "undefined"){
+                    //alert(data["data"]);
+                    setImage(rawData);
+                } else {
+                    alert("here");
+                    var data = eval('(' + e.data + ')');
+                    on(data["event"], data["data"]);
+                }/**/
+
+                on(data["event"], data["data"]); /**/
+                //alert(typeof e.data);
+                //setImage(rawData);
+                //setImage(e.data['data']);
             };
         }
 
         function sendMsg() {
             var name = document.getElementById('txt_user').value;
             var message = document.getElementById('txt_message').value;
+            //var json = JSON.stringify({"name":name, "message": message})
             var obj = {"name":name, "message": message};
             emit("new message", obj)
             //ws.send(json);
             //con.emit(json)
+            //messageBox.value = "";
         }
 
     </script>
-{% end head %}
-{% block main %}
-
+</head>
 <body onload="onLoad();">
     <strong>USER</strong>: <input type="text" name="txt_user" id="txt_user" />
     <strong>MESSAGE to Send:</strong>&nbsp;
     <input type="text" id="txt_message" maxlength="25" />
     &nbsp;<input type="button" onclick="sendMsg();" value="Send" />
     <br />
+    <!--{{ chats }}-->
     <ul id="chat-list">
         {% if chats %}
+
             {% for chat in chats %}
             <li> {{ chat['name'] }} - {{ chat['message'] }} </li>
             <hr/>
@@ -153,4 +192,4 @@
     </div>
 
 </body>
-{% end main %}
+</html>

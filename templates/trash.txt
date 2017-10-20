@@ -1,0 +1,623 @@
+isTrusted
+initMessageEvent
+data
+origin
+lastEventId
+source
+ports
+stopPropagation
+stopImmediatePropagation
+preventDefault
+initEvent
+getPreventDefault
+type
+target
+currentTarget
+eventPhase
+bubbles
+cancelable
+defaultPrevented
+composed
+timeStamp
+cancelBubble
+originalTarget
+explicitOriginalTarget
+NONE
+CAPTURING_PHASE
+AT_TARGET
+BUBBLING_PHASE
+ALT_MASK
+CONTROL_MASK
+SHIFT_MASK
+META_MASK
+
+    var Base64Binary = {
+	_keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+
+	/* will return a  Uint8Array type */
+	decodeArrayBuffer: function(input) {
+		var bytes = (input.length/4) * 3;
+		var ab = new ArrayBuffer(bytes);
+		this.decode(input, ab);
+
+		return ab;
+	},
+
+	removePaddingChars: function(input){
+		var lkey = this._keyStr.indexOf(input.charAt(input.length - 1));
+		if(lkey == 64){
+			return input.substring(0,input.length - 1);
+		}
+		return input;
+	},
+
+	decode: function (input, arrayBuffer) {
+		//get last chars to see if are valid
+		input = this.removePaddingChars(input);
+		input = this.removePaddingChars(input);
+
+		var bytes = parseInt((input.length / 4) * 3, 10);
+
+		var uarray;
+		var chr1, chr2, chr3;
+		var enc1, enc2, enc3, enc4;
+		var i = 0;
+		var j = 0;
+
+		if (arrayBuffer)
+			uarray = new Uint8Array(arrayBuffer);
+		else
+			uarray = new Uint8Array(bytes);
+
+		input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+		for (i=0; i<bytes; i+=3) {
+			//get the 3 octects in 4 ascii chars
+			enc1 = this._keyStr.indexOf(input.charAt(j++));
+			enc2 = this._keyStr.indexOf(input.charAt(j++));
+			enc3 = this._keyStr.indexOf(input.charAt(j++));
+			enc4 = this._keyStr.indexOf(input.charAt(j++));
+
+			chr1 = (enc1 << 2) | (enc2 >> 4);
+			chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+			chr3 = ((enc3 & 3) << 6) | enc4;
+
+			uarray[i] = chr1;
+			if (enc3 != 64) uarray[i+1] = chr2;
+			if (enc4 != 64) uarray[i+2] = chr3;
+		}
+
+		return uarray;
+	}
+}
+
+
+---------------------------
+connection = new WebSocket('ws://localhost:1740');
+connection.binaryType = "arraybuffer";
+connection.onopen = onopen;
+connection.onmessage = onmessage;
+connection.onclose = onclose;
+connection.onerror = onerror;
+
+sending Binary data:
+
+function sendphoto() {
+    imagedata = context.getImageData(0, 0, imagewidth,imageheight);
+
+    var canvaspixelarray = imagedata.data;
+
+
+    var canvaspixellen = canvaspixelarray.length;
+    var bytearray = new Uint8Array(canvaspixellen);
+
+    for (var i=0;i<canvaspixellen;++i) {
+        bytearray[i] = canvaspixelarray[i];
+    }
+
+    connection.send(bytearray.buffer);
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, imagewidth,imageheight);
+}
+
+Recieving Binary Data:
+
+if(event.data instanceof ArrayBuffer)
+    {
+
+        var bytearray = new Uint8Array(event.data);
+
+
+        var tempcanvas = document.createElement('canvas');
+            tempcanvas.height = imageheight;
+            tempcanvas.width = imagewidth;
+        var tempcontext = tempcanvas.getContext('2d');
+
+        var imgdata = tempcontext.getImageData(0,0,imagewidth,imageheight);
+
+        var imgdatalen = imgdata.data.length;
+
+        for(var i=8;i<imgdatalen;i++)
+        {
+            imgdata.data[i] = bytearray[i];
+        }
+
+        tempcontext.putImageData(imgdata,0,0);
+
+
+        var img = document.createElement('img');
+            img.height = imageheight;
+            img.width = imagewidth;
+            img.src = tempcanvas.toDataURL();
+        chatdiv.appendChild(img);
+        chatdiv.innerHTML = chatdiv.innerHTML + "<br />";
+    }
+    -----------------------------------------
+function ArrayBufferToString(buffer) {
+    return BinaryToString(String.fromCharCode.apply(null, Array.prototype.slice.apply(new Uint8Array(buffer))));
+}
+
+function StringToArrayBuffer(string) {
+    return StringToUint8Array(string).buffer;
+}
+
+function BinaryToString(binary) {
+    var error;
+
+    try {
+        return decodeURIComponent(escape(binary));
+    } catch (_error) {
+        error = _error;
+        if (error instanceof URIError) {
+            return binary;
+        } else {
+            throw error;
+        }
+    }
+}
+
+function StringToBinary(string) {
+    var chars, code, i, isUCS2, len, _i;
+
+    len = string.length;
+    chars = [];
+    isUCS2 = false;
+    for (i = _i = 0; 0 <= len ? _i < len : _i > len; i = 0 <= len ? ++_i : --_i) {
+        code = String.prototype.charCodeAt.call(string, i);
+        if (code > 255) {
+            isUCS2 = true;
+            chars = null;
+            break;
+        } else {
+            chars.push(code);
+        }
+    }
+    if (isUCS2 === true) {
+        return unescape(encodeURIComponent(string));
+    } else {
+        return String.fromCharCode.apply(null, Array.prototype.slice.apply(chars));
+    }
+}
+
+function StringToUint8Array(string) {
+    var binary, binLen, buffer, chars, i, _i;
+    binary = StringToBinary(string);
+    binLen = binary.length;
+    buffer = new ArrayBuffer(binLen);
+    chars  = new Uint8Array(buffer);
+    for (i = _i = 0; 0 <= binLen ? _i < binLen : _i > binLen; i = 0 <= binLen ? ++_i : --_i) {
+        chars[i] = String.prototype.charCodeAt.call(binary, i);
+    }
+    return chars;
+}
+
+
+-------------------------------------------------------------------
+
+ 2
+down vote
+
+
+The way this is achieved usually is by using UI modules.
+
+This is how I would structure your app.
+
+First main.py:
+
+import tornado.ioloop
+import tornado.web
+import views
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        HL = {
+                'headlines': ['head1', 'head2', 'head3'],
+                }
+        self.render('tmpl.html', HL=HL)
+
+if __name__ == "__main__":
+    application = tornado.web.Application([
+        (r"/", MainHandler),
+    ], ui_modules=views)
+    application.listen(8888)
+    tornado.ioloop.IOLoop.instance().start()
+
+Then your template tmpl.html:
+
+<html>
+    {% for headline in HL['headlines'] %}
+        {% module Headline(headline) %}
+    {% end %}
+    </ul>
+  </body>
+</html>
+
+Finally, views.py, where you can define all your UI modules:
+
+from tornado.web import UIModule
+
+class Headline(UIModule):
+    def render(self, name):
+        return '<h1>%s</h1>' % name
+
+UI modules are like "reusable templates", that accept parameters.
+
+#-------------------------------------------------- BEGIN [] - (20-10-2017 - 18:15:34) {{
+
+doc
+
+
+tornado.template — Flexible output generation
+
+A simple template system that compiles templates to Python code.
+
+Basic usage looks like:
+
+t = template.Template("<html>{{ myvalue }}</html>")
+print(t.generate(myvalue="XXX"))
+
+Loader is a class that loads templates from a root directory and caches the compiled templates:
+
+loader = template.Loader("/home/btaylor")
+print(loader.load("test.html").generate(myvalue="XXX"))
+
+We compile all templates to raw Python. Error-reporting is currently... uh, interesting. Syntax for the templates:
+
+### base.html
+<html>
+  <head>
+    <title>{% block title %}Default title{% end %}</title>
+  </head>
+  <body>
+    <ul>
+      {% for student in students %}
+        {% block student %}
+          <li>{{ escape(student.name) }}</li>
+        {% end %}
+      {% end %}
+    </ul>
+  </body>
+</html>
+
+### bold.html
+{% extends "base.html" %}
+
+{% block title %}A bolder title{% end %}
+
+{% block student %}
+  <li><span style="bold">{{ escape(student.name) }}</span></li>
+{% end %}
+
+Unlike most other template systems, we do not put any restrictions on the expressions you can include in your statements. if and for blocks get translated exactly into Python, so you can do complex expressions like:
+
+{% for student in [p for p in people if p.student and p.age > 23] %}
+  <li>{{ escape(student.name) }}</li>
+{% end %}
+
+Translating directly to Python means you can apply functions to expressions easily, like the escape() function in the examples above. You can pass functions in to your template just like any other variable (In a RequestHandler, override RequestHandler.get_template_namespace):
+
+### Python code
+def add(x, y):
+   return x + y
+template.execute(add=add)
+
+### The template
+{{ add(1, 2) }}
+
+We provide the functions escape(), url_escape(), json_encode(), and squeeze() to all templates by default.
+
+Typical applications do not create Template or Loader instances by hand, but instead use the render and render_string methods of tornado.web.RequestHandler, which load templates automatically based on the template_path Application setting.
+
+Variable names beginning with _tt_ are reserved by the template system and should not be used by application code.
+Syntax Reference
+
+Template expressions are surrounded by double curly braces: {{ ... }}. The contents may be any python expression, which will be escaped according to the current autoescape setting and inserted into the output. Other template directives use {% %}.
+
+To comment out a section so that it is omitted from the output, surround it with {# ... #}.
+
+These tags may be escaped as {{!, {%!, and {#! if you need to include a literal {{, {%, or {# in the output.
+
+{% apply *function* %}...{% end %}
+
+    Applies a function to the output of all template code between apply and end:
+
+    {% apply linkify %}{{name}} said: {{message}}{% end %}
+
+    Note that as an implementation detail apply blocks are implemented as nested functions and thus may interact strangely with variables set via {% set %}, or the use of {% break %} or {% continue %} within loops.
+{% autoescape *function* %}
+
+    Sets the autoescape mode for the current file. This does not affect other files, even those referenced by {% include %}. Note that autoescaping can also be configured globally, at the Application or Loader.:
+
+    {% autoescape xhtml_escape %}
+    {% autoescape None %}
+
+{% block *name* %}...{% end %}
+
+    Indicates a named, replaceable block for use with {% extends %}. Blocks in the parent template will be replaced with the contents of the same-named block in a child template.:
+
+    <!-- base.html -->
+    <title>{% block title %}Default title{% end %}</title>
+
+    <!-- mypage.html -->
+    {% extends "base.html" %}
+    {% block title %}My page title{% end %}
+
+{% comment ... %}
+    A comment which will be removed from the template output. Note that there is no {% end %} tag; the comment goes from the word comment to the closing %} tag.
+{% extends *filename* %}
+    Inherit from another template. Templates that use extends should contain one or more block tags to replace content from the parent template. Anything in the child template not contained in a block tag will be ignored. For an example, see the {% block %} tag.
+{% for *var* in *expr* %}...{% end %}
+    Same as the python for statement. {% break %} and {% continue %} may be used inside the loop.
+{% from *x* import *y* %}
+    Same as the python import statement.
+{% if *condition* %}...{% elif *condition* %}...{% else %}...{% end %}
+    Conditional statement - outputs the first section whose condition is true. (The elif and else sections are optional)
+{% import *module* %}
+    Same as the python import statement.
+{% include *filename* %}
+    Includes another template file. The included file can see all the local variables as if it were copied directly to the point of the include directive (the {% autoescape %} directive is an exception). Alternately, {% module Template(filename, **kwargs) %} may be used to include another template with an isolated namespace.
+{% module *expr* %}
+
+    Renders a UIModule. The output of the UIModule is not escaped:
+
+    {% module Template("foo.html", arg=42) %}
+
+    UIModules are a feature of the tornado.web.RequestHandler class (and specifically its render method) and will not work when the template system is used on its own in other contexts.
+{% raw *expr* %}
+    Outputs the result of the given expression without autoescaping.
+{% set *x* = *y* %}
+    Sets a local variable.
+{% try %}...{% except %}...{% else %}...{% finally %}...{% end %}
+    Same as the python try statement.
+{% while *condition* %}... {% end %}
+    Same as the python while statement. {% break %} and {% continue %} may be used inside the loop.
+{% whitespace *mode* %}
+    Sets the whitespace mode for the remainder of the current file (or until the next {% whitespace %} directive). See filter_whitespace for available options. New in Tornado 4.3.
+
+Class reference
+
+class tornado.template.Template(template_string, name="<string>", loader=None, compress_whitespace=None, autoescape="xhtml_escape", whitespace=None)[source]
+
+    A compiled template.
+
+    We compile into Python from the given template_string. You can generate the template from variables with generate().
+
+    Construct a Template.
+    Parameters:
+
+        template_string (str) – the contents of the template file.
+        name (str) – the filename from which the template was loaded (used for error message).
+        loader (tornado.template.BaseLoader) – the BaseLoader responsible for this template, used to resolve {% include %} and {% extend %} directives.
+        compress_whitespace (bool) – Deprecated since Tornado 4.3. Equivalent to whitespace="single" if true and whitespace="all" if false.
+        autoescape (str) – The name of a function in the template namespace, or None to disable escaping by default.
+        whitespace (str) – A string specifying treatment of whitespace; see filter_whitespace for options.
+
+    Changed in version 4.3: Added whitespace parameter; deprecated compress_whitespace.
+
+    generate(**kwargs)[source]
+
+        Generate this template with the given arguments.
+
+class tornado.template.BaseLoader(autoescape='xhtml_escape', namespace=None, whitespace=None)[source]
+
+    Base class for template loaders.
+
+    You must use a template loader to use template constructs like {% extends %} and {% include %}. The loader caches all templates after they are loaded the first time.
+
+    Construct a template loader.
+    Parameters:
+
+        autoescape (str) – The name of a function in the template namespace, such as “xhtml_escape”, or None to disable autoescaping by default.
+        namespace (dict) – A dictionary to be added to the default template namespace, or None.
+        whitespace (str) – A string specifying default behavior for whitespace in templates; see filter_whitespace for options. Default is “single” for files ending in ”.html” and ”.js” and “all” for other files.
+
+#-------------------------------------------------- END   [] - (20-10-2017 - 18:15:34) }}
+
+#-------------------------------------------------- BEGIN [] - (20-10-2017 - 18:17:00) {{
+
+
+
+Templates and UI
+
+Tornado includes a simple, fast, and flexible templating language. This section describes that language as well as related issues such as internationalization.
+
+Tornado can also be used with any other Python template language, although there is no provision for integrating these systems into RequestHandler.render. Simply render the template to a string and pass it to RequestHandler.write
+Configuring templates
+
+By default, Tornado looks for template files in the same directory as the .py files that refer to them. To put your template files in a different directory, use the template_path Application setting (or override RequestHandler.get_template_path if you have different template paths for different handlers).
+
+To load templates from a non-filesystem location, subclass tornado.template.BaseLoader and pass an instance as the template_loader application setting.
+
+Compiled templates are cached by default; to turn off this caching and reload templates so changes to the underlying files are always visible, use the application settings compiled_template_cache=False or debug=True.
+Template syntax
+
+A Tornado template is just HTML (or any other text-based format) with Python control sequences and expressions embedded within the markup:
+
+<html>
+   <head>
+      <title>{{ title }}</title>
+   </head>
+   <body>
+     <ul>
+       {% for item in items %}
+         <li>{{ escape(item) }}</li>
+       {% end %}
+     </ul>
+   </body>
+ </html>
+
+If you saved this template as “template.html” and put it in the same directory as your Python file, you could render this template with:
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        items = ["Item 1", "Item 2", "Item 3"]
+        self.render("template.html", title="My title", items=items)
+
+Tornado templates support control statements and expressions. Control statements are surrounded by {% and %}, e.g., {% if len(items) > 2 %}. Expressions are surrounded by {{ and }}, e.g., {{ items[0] }}.
+
+Control statements more or less map exactly to Python statements. We support if, for, while, and try, all of which are terminated with {% end %}. We also support template inheritance using the extends and block statements, which are described in detail in the documentation for the tornado.template.
+
+Expressions can be any Python expression, including function calls. Template code is executed in a namespace that includes the following objects and functions (Note that this list applies to templates rendered using RequestHandler.render and render_string. If you’re using the tornado.template module directly outside of a RequestHandler many of these entries are not present).
+
+    escape: alias for tornado.escape.xhtml_escape
+    xhtml_escape: alias for tornado.escape.xhtml_escape
+    url_escape: alias for tornado.escape.url_escape
+    json_encode: alias for tornado.escape.json_encode
+    squeeze: alias for tornado.escape.squeeze
+    linkify: alias for tornado.escape.linkify
+    datetime: the Python datetime module
+    handler: the current RequestHandler object
+    request: alias for handler.request
+    current_user: alias for handler.current_user
+    locale: alias for handler.locale
+    _: alias for handler.locale.translate
+    static_url: alias for handler.static_url
+    xsrf_form_html: alias for handler.xsrf_form_html
+    reverse_url: alias for Application.reverse_url
+    All entries from the ui_methods and ui_modules Application settings
+    Any keyword arguments passed to render or render_string
+
+When you are building a real application, you are going to want to use all of the features of Tornado templates, especially template inheritance. Read all about those features in the tornado.template section (some features, including UIModules are implemented in the tornado.web module)
+
+Under the hood, Tornado templates are translated directly to Python. The expressions you include in your template are copied verbatim into a Python function representing your template. We don’t try to prevent anything in the template language; we created it explicitly to provide the flexibility that other, stricter templating systems prevent. Consequently, if you write random stuff inside of your template expressions, you will get random Python errors when you execute the template.
+
+All template output is escaped by default, using the tornado.escape.xhtml_escape function. This behavior can be changed globally by passing autoescape=None to the Application or tornado.template.Loader constructors, for a template file with the {% autoescape None %} directive, or for a single expression by replacing {{ ... }} with {% raw ...%}. Additionally, in each of these places the name of an alternative escaping function may be used instead of None.
+
+Note that while Tornado’s automatic escaping is helpful in avoiding XSS vulnerabilities, it is not sufficient in all cases. Expressions that appear in certain locations, such as in Javascript or CSS, may need additional escaping. Additionally, either care must be taken to always use double quotes and xhtml_escape in HTML attributes that may contain untrusted content, or a separate escaping function must be used for attributes (see e.g. http://wonko.com/post/html-escaping)
+Internationalization
+
+The locale of the current user (whether they are logged in or not) is always available as self.locale in the request handler and as locale in templates. The name of the locale (e.g., en_US) is available as locale.name, and you can translate strings with the Locale.translate method. Templates also have the global function call _() available for string translation. The translate function has two forms:
+
+_("Translate this string")
+
+which translates the string directly based on the current locale, and:
+
+_("A person liked this", "%(num)d people liked this",
+  len(people)) % {"num": len(people)}
+
+which translates a string that can be singular or plural based on the value of the third argument. In the example above, a translation of the first string will be returned if len(people) is 1, or a translation of the second string will be returned otherwise.
+
+The most common pattern for translations is to use Python named placeholders for variables (the %(num)d in the example above) since placeholders can move around on translation.
+
+Here is a properly internationalized template:
+
+<html>
+   <head>
+      <title>FriendFeed - {{ _("Sign in") }}</title>
+   </head>
+   <body>
+     <form action="{{ request.path }}" method="post">
+       <div>{{ _("Username") }} <input type="text" name="username"/></div>
+       <div>{{ _("Password") }} <input type="password" name="password"/></div>
+       <div><input type="submit" value="{{ _("Sign in") }}"/></div>
+       {% module xsrf_form_html() %}
+     </form>
+   </body>
+ </html>
+
+By default, we detect the user’s locale using the Accept-Language header sent by the user’s browser. We choose en_US if we can’t find an appropriate Accept-Language value. If you let user’s set their locale as a preference, you can override this default locale selection by overriding RequestHandler.get_user_locale:
+
+class BaseHandler(tornado.web.RequestHandler):
+    def get_current_user(self):
+        user_id = self.get_secure_cookie("user")
+        if not user_id: return None
+        return self.backend.get_user_by_id(user_id)
+
+    def get_user_locale(self):
+        if "locale" not in self.current_user.prefs:
+            # Use the Accept-Language header
+            return None
+        return self.current_user.prefs["locale"]
+
+If get_user_locale returns None, we fall back on the Accept-Language header.
+
+The tornado.locale module supports loading translations in two formats: the .mo format used by gettext and related tools, and a simple .csv format. An application will generally call either tornado.locale.load_translations or tornado.locale.load_gettext_translations once at startup; see those methods for more details on the supported formats..
+
+You can get the list of supported locales in your application with tornado.locale.get_supported_locales(). The user’s locale is chosen to be the closest match based on the supported locales. For example, if the user’s locale is es_GT, and the es locale is supported, self.locale will be es for that request. We fall back on en_US if no close match can be found.
+UI modules
+
+Tornado supports UI modules to make it easy to support standard, reusable UI widgets across your application. UI modules are like special function calls to render components of your page, and they can come packaged with their own CSS and JavaScript.
+
+For example, if you are implementing a blog, and you want to have blog entries appear on both the blog home page and on each blog entry page, you can make an Entry module to render them on both pages. First, create a Python module for your UI modules, e.g., uimodules.py:
+
+class Entry(tornado.web.UIModule):
+    def render(self, entry, show_comments=False):
+        return self.render_string(
+            "module-entry.html", entry=entry, show_comments=show_comments)
+
+Tell Tornado to use uimodules.py using the ui_modules setting in your application:
+
+from . import uimodules
+
+class HomeHandler(tornado.web.RequestHandler):
+    def get(self):
+        entries = self.db.query("SELECT * FROM entries ORDER BY date DESC")
+        self.render("home.html", entries=entries)
+
+class EntryHandler(tornado.web.RequestHandler):
+    def get(self, entry_id):
+        entry = self.db.get("SELECT * FROM entries WHERE id = %s", entry_id)
+        if not entry: raise tornado.web.HTTPError(404)
+        self.render("entry.html", entry=entry)
+
+settings = {
+    "ui_modules": uimodules,
+}
+application = tornado.web.Application([
+    (r"/", HomeHandler),
+    (r"/entry/([0-9]+)", EntryHandler),
+], **settings)
+
+Within a template, you can call a module with the {% module %} statement. For example, you could call the Entry module from both home.html:
+
+{% for entry in entries %}
+  {% module Entry(entry) %}
+{% end %}
+
+and entry.html:
+
+{% module Entry(entry, show_comments=True) %}
+
+Modules can include custom CSS and JavaScript functions by overriding the embedded_css, embedded_javascript, javascript_files, or css_files methods:
+
+class Entry(tornado.web.UIModule):
+    def embedded_css(self):
+        return ".entry { margin-bottom: 1em; }"
+
+    def render(self, entry, show_comments=False):
+        return self.render_string(
+            "module-entry.html", show_comments=show_comments)
+
+Module CSS and JavaScript will be included once no matter how many times a module is used on a page. CSS is always included in the <head> of the page, and JavaScript is always included just before the </body> tag at the end of the page.
+
+When additional Python code is not required, a template file itself may be used as a module. For example, the preceding example could be rewritten to put the following in module-entry.html:
+
+{{ set_resources(embedded_css=".entry { margin-bottom: 1em; }") }}
+<!-- more template html... -->
+
+This revised template module would be invoked with:
+
+{% module Template("module-entry.html", show_comments=True) %}
+
+The set_resources function is only available in templates invoked via {% module Template(...) %}. Unlike the {% include ... %} directive, template modules have a distinct namespace from their containing template - they can only see the global template namespace and their own keyword arguments.
+#-------------------------------------------------- END   [] - (20-10-2017 - 18:17:00) }}
