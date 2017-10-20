@@ -1,0 +1,10 @@
+body{
+    background-color: #D7DEF7;
+}
+
+#div_desktop{
+    background-color: #000;
+    width: 800px;
+    height: 600px;
+    /*display: none;*/
+}
