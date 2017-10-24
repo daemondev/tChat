@@ -1,0 +1,156 @@
+{% extends 'layout.html' %}
+{% block head %}
+
+    <title>Tornado WebSockets</title>
+    <script type="text/javascript" src="/static/js/jquery.js"></script>
+    <script type="text/javascript" src="/static/js/axios.min.js"></script>
+    <script type="text/javascript" src="/static/js/app.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/app.css" />
+    <script>
+        function Connector(wsurl) {
+            namespace = ""
+            if(arguments.length > 1){
+                wsurl += "/" + arguments[1];
+            }
+            this.protocol = "bla";
+            this.socket = new WebSocket(wsurl, this.protocol);
+        }
+
+        Connector.prototype.emit = function(msg) {
+
+            var self = this;
+
+            (function _waitForSocketConnection(callback) {
+                setTimeout(function() {
+                    if (self.socket.readyState === 1) {
+                        console.log("Connection is made")
+                        if (callback != null) {
+                            callback();
+                        }
+                        return;
+
+                    } else {
+                        console.log("wait for connection...")
+                        _waitForSocketConnection(callback);
+                    }
+                }, 5);
+            })(function() {
+                console.log("message sent!!!");
+                self.socket.send(msg);
+            });
+        }
+
+        //new Connector("ws://echo.websocket.org").emit('def');
+
+//#################################################################
+    const fileReader = new FileReader();
+
+      function fetchImage() {
+        new Promise((res, rej) => {
+          const url = "/screen.png?random=" + new Date().getTime()
+          axios.get(url, { responseType: 'blob' })
+            .then(function (response) {
+              document.images["screen"].src = URL.createObjectURL(response.data)
+              res(fetchImage())
+            })
+            .catch(function (error) { console.log(error) })
+        })
+      }
+
+      //document.addEventListener("DOMContentLoaded", fetchImage)
+//#################################################################
+
+    function emit(message, data){
+        var json = JSON.stringify({0:message, 1: data})
+        ws.send(json);
+    }
+
+    function setImage(data){
+        var len = data.length - 3;
+        data = data.substr(2, len);
+        document.images["screen"].src = "data:image/png;base64," + data; //run
+    }
+
+
+    function onMessage(evt) {
+        if (evt.data instanceof ArrayBuffer) {
+            var length = evt.data.byteLength;
+            var blob = new Blob([evt.data],{type:'image/png'});
+            var url = URL.createObjectURL(blob);
+            var image = document.getElementById("image");
+            var img = new Image();
+            img.onload = function(){
+                var ctx = image.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+            }
+            img.src = url;
+        }
+    }
+
+    function on(event, data){
+        //Object.keys(e).map(d => console.log(`key=${d}  value=${e[d]}`));
+        if (event == "new chat"){
+            var chatList = document.getElementById("chat-list");
+            var messageBox = document.getElementById("txt_message");
+            messageBox.value = "";
+            chatList.innerHTML = "<li class='collection-item'>" + data.name + " - " + data.message + "</li><hr />" + chatList.innerHTML;
+        } else if(event = "show desktop"){
+            setImage(data);
+        }
+    }
+
+//#################################################################
+
+        var ws, domain, separator = "://", port = "", protocol = "ws" + separator, namespace = "/websocket";
+        var flag = false;
+        function onLoad() {
+            if(location.port != "") port = ":" + location.port;
+            if (location.protocol != 'http:') protocol = "wss" + separator;
+
+            ws = new WebSocket(protocol + document.domain + port + namespace);
+
+            ws.onmessage = function(e) {
+                var data = eval('(' + e.data + ')');
+                on(data["event"], data["data"]);
+            };
+        }
+
+        function sendMsg() {
+            var name = document.getElementById('txt_user').value;
+            var message = document.getElementById('txt_message').value;
+            var obj = {"name":name, "message": message};
+            emit("new message", obj)
+            //ws.send(json);
+            //con.emit(json)
+        }
+
+    </script>
+{% end head %}
+{% block main %}
+
+<body onload="onLoad();">
+    <strong>USER</strong>: <input type="text" name="txt_user" id="txt_user" />
+    <strong>MESSAGE to Send:</strong>&nbsp;
+    <input type="text" id="txt_message" maxlength="25" />
+    &nbsp;<input type="button" onclick="sendMsg();" value="Send" />
+    <br />
+    <ul id="chat-list">
+        {% if chats %}
+            {% for chat in chats %}
+            <li> {{ chat['name'] }} - {{ chat['message'] }} </li>
+            <hr/>
+            {% end %}
+        {% end %}
+
+    </ul>
+    <br />
+    <div id="div_actions">
+        <input type="button" name="btn_showDesktop" id="btn_showDesktop" value="SHOW BOT">
+    </div>
+    <div id="div_desktop">
+        <img width="800px" height="640px" id="screen" />
+        <!--<img width="400px" height="320px" id="screen" />-->
+    </div>
+
+</body>
+{% end main %}

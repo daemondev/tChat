@@ -28,12 +28,27 @@ r.set_loop_type("tornado")
 def create_chat(data):
     data = json.loads(data)
 
-    data = data["1"]
-    data['created'] = datetime.now(r.make_timezone('00:00'))
-    if data.get('name') and data.get('message'):
-        conn = yield r.connect(host="localhost", port=28015, db='chat')
-        new_chat = yield r.table("chats").insert([ data ]).run(conn)
-    print(">>> end create_chat")
+    action = data['0']
+    conn = yield r.connect(host="localhost", port=28015, db='chat')
+
+    if action == "start bot":
+        data['action'] = "start"
+        data['status'] = 1
+
+        new_action = yield r.table("botActions").insert([ data ]).run(conn)
+        print("starting bot")
+    elif action == "exit bot":
+        data['action'] = "stop"
+        data['status'] = 1
+
+        new_action = yield r.table("botActions").insert([ data ]).run(conn)
+        print("shutdown bot")
+    elif action == "new message":
+        data = data["1"]
+        data['created'] = datetime.now(r.make_timezone('00:00'))
+        if data.get('name') and data.get('message'):
+            new_chat = yield r.table("chats").insert([ data ]).run(conn)
+        print(">>> end create_chat")
 
 connections = set()
 
@@ -281,3 +296,6 @@ if __name__ == '__main__':
 #http://laht.info/sending-images-over-websockets-in-python-2-7/
 #https://stackoverflow.com/questions/9546437/how-send-arraybuffer-as-binary-via-websocket # send image
 #https://www.browserling.com/tools/js-minify
+#https://www.rethinkdb.com/api/python/changes/
+#https://rethinkdb.com/docs/changefeeds/python/
+#https://rethinkdb.com/api/python/wait/

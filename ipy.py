@@ -16,5 +16,10 @@ def drop():
     """Delete all chats (truncate)"""
     r.db('chat').table('chats').delete().run(conn)
 
+def sb():
+    data = {'action':'start', 'status':1}
+    new_chat = r.table("botActions").insert([ data ]).run(conn)
+
 #drop()
-ins()
+#ins()
+sb()
