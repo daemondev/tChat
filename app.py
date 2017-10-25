@@ -20,6 +20,7 @@ from rethinkdb import RqlRuntimeError, RqlDriverError
 
 #-------------------------------------------------- BEGIN [DEV MODE] - (19-10-2017 - 11:00:51) {{
 #import tornado.wsgi
+import argparse
 #-------------------------------------------------- END   [DEV MODE] - (19-10-2017 - 11:00:51) }}
 
 r.set_loop_type("tornado")
@@ -28,12 +29,27 @@ r.set_loop_type("tornado")
 def create_chat(data):
     data = json.loads(data)
 
-    data = data["1"]
-    data['created'] = datetime.now(r.make_timezone('00:00'))
-    if data.get('name') and data.get('message'):
-        conn = yield r.connect(host="localhost", port=28015, db='chat')
-        new_chat = yield r.table("chats").insert([ data ]).run(conn)
-    print(">>> end create_chat")
+    action = data['0']
+    conn = yield r.connect(host="localhost", port=28015, db='pyBOT')
+
+    if action == "start bot":
+        data['action'] = "start"
+        data['status'] = 1
+
+        new_action = yield r.table("botActions").insert([ data ]).run(conn)
+        print("starting bot")
+    elif action == "exit bot":
+        data['action'] = "stop"
+        data['status'] = 1
+
+        new_action = yield r.table("botActions").insert([ data ]).run(conn)
+        print("shutdown bot")
+    elif action == "new message":
+        data = data["1"]
+        data['created'] = datetime.now(r.make_timezone('00:00'))
+        if data.get('name') and data.get('message'):
+            new_chat = yield r.table("chats").insert([ data ]).run(conn)
+        print(">>> end create_chat")
 
 connections = set()
 
@@ -89,9 +105,9 @@ def sendDesktop():
 @gen.coroutine
 def watch_chats():
     print('\n#################################\n###>>> Watching db for new chats!\n#################################\n\n')
-    conn = yield r.connect(host='localhost', port=28015, db='chat')
-    feed = yield r.table("chats").changes().run(conn)
-    union = yield r.union(r.table("chats").changes(), r.table("scripts").changes()).run(conn)
+    conn = yield r.connect(host='localhost', port=28015, db='pyBOT')
+    feed = yield r.table("botChat").changes().run(conn)
+    union = yield r.union(r.table("botChat").changes(), r.table("botScripts").changes()).run(conn)
 
     while (yield feed.fetch_next()):
         change = yield feed.next()
@@ -105,8 +121,8 @@ def watch_chats():
 
 @gen.coroutine
 def print_changes():
-    conn = yield r.connect(host="localhost", port=28015, db='chat')
-    feed = yield r.table("chats").changes().run(conn)
+    conn = yield r.connect(host="localhost", port=28015, db='pyBOT')
+    feed = yield r.table("botChat").changes().run(conn)
     while (yield feed.fetch_next()):
         change = yield feed.next()
         for c in connections:
@@ -148,17 +164,14 @@ def get(self):
 class IndexPageHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
-        conn = yield r.connect(host='localhost', port=28015, db='chat')
-        chatsr = yield r.table("chats").order_by(index=r.desc('created')).limit(20).run(conn)
+        conn = yield r.connect(host='localhost', port=28015, db='pyBOT')
+        chatsr = yield r.table("botChat").order_by(index=r.desc('created')).limit(20).run(conn)
         #self.render("index.html", chats=chatsr)
 
         chats = []
-        #"""
         while (yield chatsr.fetch_next()):
             chat = yield chatsr.next()
             chats.append(chat)
-            #print("added")
-            #print(chats) #"""
         """
         for chat in (yield chatsr.next()):
             # Is guaranteed to have a result since we have already waited on feed.fetch_next
@@ -213,45 +226,81 @@ class Application(tornado.web.Application):
 
         tornado.web.Application.__init__(self, handlers, **settings)
 
+config = dict(
+            DEBUG=True,
+            SECRET_KEY="MyTrueSecretAppKey",
+            DB_HOST="localhost",
+            DB_PORT=28015,
+            DB_NAME="pyBOT",
+            DB_TABLES=["botChat", "botActions", "botConfig", "botScripts", "botUsers"]
+        )
+
+
+@gen.coroutine
+def init_db():
+    conn = yield r.connect(host=config["DB_HOST"], port=config["DB_PORT"])
+    #conn = r.connect(host="localhost", port=28015)
+    print("CONECTED TO [%s]" % config["DB_HOST"])
+    try:
+        yield r.db_create(config["DB_NAME"]).run(conn)
+        print("%s - DB [%s] CREATED" % (config["DB_HOST"], config["DB_NAME"]))
+        for table in config["DB_TABLES"]:
+            r.db(config["DB_NAME"]).table_create(table).run(conn)
+            print("%s - %s - TABLE [%s] CREATED" % (config["DB_HOST"], config["DB_NAME"], table))
+            r.db(config["DB_NAME"]).table(table).index_create("ins").run(conn)
+            print("%s - %s - %s - INDEX [%s] CREATED" % (config["DB_HOST"], config["DB_NAME"], table, "ins"))
+        print("\nDATABASE CONFIG SUCCESS\n")
+    except RqlRuntimeError as e:
+        print(str(e))
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
-    ws_app = Application()
-    #"""
-    if thread is None:
-        thread = Thread(target=watch_chats)
-        thread.setDaemon(True)
-        thread.start() #"""
+    parser = argparse.ArgumentParser(description="pyBOT WebPanel")
+    parser.add_argument("--setup", dest="run_setup", action="store_true")
+    args = parser.parse_args()
+    if args.run_setup:
+        #init_db()
+        tornado.ioloop.IOLoop.current().run_sync(init_db)
+    else:
+        ws_app = Application()
+        #"""
+        if thread is None:
+            thread = Thread(target=watch_chats)
+            thread.setDaemon(True)
+            thread.start() #"""
 
-    """
-    sockets = tornado.netutil.bind_sockets(8888)
-    tornado.process.fork_processes(0)
-    server = tornado.httpserver.HTTPServer(ws_app)
-    server.add_sockets(sockets)
-    tornado.ioloop.IOLoop.current().start() #"""
+        """
+        sockets = tornado.netutil.bind_sockets(8888)
+        tornado.process.fork_processes(0)
+        server = tornado.httpserver.HTTPServer(ws_app)
+        server.add_sockets(sockets)
+        tornado.ioloop.IOLoop.current().start() #"""
 
-    #""" ### Ready work
-    #server = tornado.httpserver.HTTPServer(ws_app)
-    #server.listen(8000, address="0.0.0.0") # omit address
+        #""" ### Ready work
+        #server = tornado.httpserver.HTTPServer(ws_app)
+        #server.listen(8000, address="0.0.0.0") # omit address
 
-    server = tornado.httpserver.HTTPServer(ws_app, ssl_options={"certfile": "domain.crt", "keyfile": "domain.key",})
-    server.listen(443, address="0.0.0.0")
+        server = tornado.httpserver.HTTPServer(ws_app, ssl_options={"certfile": "domain.crt", "keyfile": "domain.key",})
+        server.listen(443, address="0.0.0.0")
 
-    #tornado.ioloop.IOLoop.current().add_callback(print_changes)
-    tornado.ioloop.IOLoop.current().add_callback(sendDesktop)
-    #tornado.ioloop.IOLoop.current().add_callback(watch_chats)
-    tornado.ioloop.IOLoop.instance().start() #"""
+        #tornado.ioloop.IOLoop.current().add_callback(print_changes)
+        tornado.ioloop.IOLoop.current().add_callback(sendDesktop)
+        #tornado.ioloop.IOLoop.current().add_callback(watch_chats)
+        tornado.ioloop.IOLoop.instance().start() #"""
 
-    """ ### Development
-    from livereload import Server, shell
-    wsgi_app = tornado.wsgi.WSGIAdapter(ws_app)
-    server = Server(wsgi_app)
-    # livereload on another port
-    #server.serve(liveport=35729)
+        """ ### Development
+        from livereload import Server, shell
+        wsgi_app = tornado.wsgi.WSGIAdapter(ws_app)
+        server = Server(wsgi_app)
+        # livereload on another port
+        #server.serve(liveport=35729)
 
-    # use custom host and port
-    server.serve(port=8000, host='localhost')
+        # use custom host and port
+        server.serve(port=8000, host='localhost')
 
-    # open the web browser on startup
-    #server.serve(open_url=True, debug=False) #"""
+        # open the web browser on startup
+        #server.serve(open_url=True, debug=False) #"""
 
 #https://github.com/rethinkdb/docs/blob/issue-684-async-docs/2-query-language/asynchronous.md#python-and-tornado
 #https://github.com/rethinkdb/rethinkdb/issues/2622
@@ -281,3 +330,6 @@ if __name__ == '__main__':
 #http://laht.info/sending-images-over-websockets-in-python-2-7/
 #https://stackoverflow.com/questions/9546437/how-send-arraybuffer-as-binary-via-websocket # send image
 #https://www.browserling.com/tools/js-minify
+#https://www.rethinkdb.com/api/python/changes/
+#https://rethinkdb.com/docs/changefeeds/python/
+#https://rethinkdb.com/api/python/wait/
