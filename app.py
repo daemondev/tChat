@@ -165,7 +165,8 @@ class IndexPageHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
         conn = yield r.connect(host='localhost', port=28015, db='pyBOT')
-        chatsr = yield r.table("botChat").order_by(index=r.desc('created')).limit(20).run(conn)
+        #chatsr = yield r.table("botChat").order_by(index=r.desc('created')).limit(20).run(conn)
+        chatsr = yield r.table("botChat").order_by(index=r.desc('ins')).limit(20).run(conn)
         #self.render("index.html", chats=chatsr)
 
         chats = []
@@ -245,10 +246,11 @@ def init_db():
         yield r.db_create(config["DB_NAME"]).run(conn)
         print("%s - DB [%s] CREATED" % (config["DB_HOST"], config["DB_NAME"]))
         for table in config["DB_TABLES"]:
-            r.db(config["DB_NAME"]).table_create(table).run(conn)
+            yield r.db(config["DB_NAME"]).table_create(table).run(conn)
             print("%s - %s - TABLE [%s] CREATED" % (config["DB_HOST"], config["DB_NAME"], table))
-            r.db(config["DB_NAME"]).table(table).index_create("ins").run(conn)
+            yield r.db(config["DB_NAME"]).table(table).index_create("ins").run(conn)
             print("%s - %s - %s - INDEX [%s] CREATED" % (config["DB_HOST"], config["DB_NAME"], table, "ins"))
+            print("")
         print("\nDATABASE CONFIG SUCCESS\n")
     except RqlRuntimeError as e:
         print(str(e))
