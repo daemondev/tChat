@@ -46,9 +46,10 @@ def create_chat(data):
         print("shutdown bot")
     elif action == "new message":
         data = data["1"]
-        data['created'] = datetime.now(r.make_timezone('00:00'))
+        #data['created'] = datetime.now(r.make_timezone('00:00'))
+        data['ins'] = datetime.now(r.make_timezone('00:00'))
         if data.get('name') and data.get('message'):
-            new_chat = yield r.table("chats").insert([ data ]).run(conn)
+            new_chat = yield r.table("botChat").insert([ data ]).run(conn)
         print(">>> end create_chat")
 
 connections = set()
@@ -113,7 +114,8 @@ def watch_chats():
         change = yield feed.next()
         print("\nconexiones WS: %d\n" % len(connections))
         for c in connections:
-            change['new_val']['created'] = str(change['new_val']['created'])
+            #change['new_val']['created'] = str(change['new_val']['created'])
+            change['new_val']['ins'] = str(change['new_val']['ins'])
             payload = {"event":"new chat","data": change["new_val"]}
             c.write_message(payload)
         print(change)
@@ -126,11 +128,38 @@ def print_changes():
     while (yield feed.fetch_next()):
         change = yield feed.next()
         for c in connections:
-            change['new_val']['created'] = str(change['new_val']['created'])
+            #change['new_val']['created'] = str(change['new_val']['created'])
+            change['new_val']['ins'] = str(change['new_val']['ins'])
             payload = {"event":"new chat","data": change["new_val"]}
             #c.write_message(change)
             c.write_message(payload)
         print(change)
+
+class SendJavascript(tornado.web.RequestHandler):
+    @gen.coroutine
+    def get(self):
+        try:
+            with open('static/js/chat/chatCORS.js', 'rb') as jsFile:
+                data = jsFile.read()
+                self.write(data)
+            self.finish()
+        except Exception as e:
+            raise e
+#&#x274C; and &#x274E;
+#&#10006;
+class SendCSS(tornado.web.RequestHandler):
+    @gen.coroutine
+    def get(self):
+        try:
+            self.set_header('Content-type', 'text/css')
+            with open('static/css/chat/chatCORS.css', 'rb') as cssFile:
+                data = cssFile.read()
+                self.write(data)
+            self.finish()
+        except Exception as e:
+            raise e
+
+#preloadChat
 
 class DesktopHandler(tornado.web.RequestHandler):
     @gen.coroutine
@@ -221,6 +250,8 @@ class Application(tornado.web.Application):
         handlers = [
             (r'/', IndexPageHandler),
             (r'/screen.png', DesktopHandler),
+            (r'/initChat', SendJavascript),
+            (r'/preloadChat', SendCSS),
             (r'/websocket', WebSocketHandler),
             (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': static_folder})
         ]
@@ -287,7 +318,7 @@ if __name__ == '__main__':
         server.listen(443, address="0.0.0.0")
 
         #tornado.ioloop.IOLoop.current().add_callback(print_changes)
-        tornado.ioloop.IOLoop.current().add_callback(sendDesktop)
+        #tornado.ioloop.IOLoop.current().add_callback(sendDesktop) ####temp disable - test SGP chat - 20171115
         #tornado.ioloop.IOLoop.current().add_callback(watch_chats)
         tornado.ioloop.IOLoop.instance().start() #"""
 

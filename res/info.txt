@@ -1,0 +1,38 @@
+Here are also some useful ones
+
+HTML
+
+✕ &#x2715; ✓ &#x2713;
+✖ &#x2716; ✔ &#x2714;
+
+✗ &#x2717;
+✘ &#x2718;
+
+× &#xd7; &times;
+
+CSS
+
+If you want to use the above characters from CSS (like i.e: in an :before or :after pseudo) simply use the Unicode HEX value like for example:
+
+[class^="ico-"], [class*=" ico-"]{
+  font: normal 1em/1 Arial, sans-serif;
+  display: inline-block;
+}
+
+
+.ico-times:before{ content: "\2716"; }
+.ico-check:before{ content: "\2714"; }
+
+<i class="ico-times"></i>
+<i class="ico-check"></i>
+#-------------------------------------------------- BEGIN [static file] - (15-11-2017 - 13:18:18) {{
+http://tornado.readthedocs.io/en/latest/guide/running.html
+https://stackoverflow.com/questions/23988185/tornado-python-self-renderexample-html-ignores-css
+The css belongs into the static folder, that you have declared here:
+
+"static_path": os.path.join(config.base_dir, "static")
+
+This is how to link it into the template:
+
+<link rel="stylesheet" href="{{ static_url("presnt.css") }}">
+#-------------------------------------------------- END   [static file] - (15-11-2017 - 13:18:18) }}

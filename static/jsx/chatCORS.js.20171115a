@@ -1,0 +1,32 @@
+$(document).ready(function(){
+        //alert("REACT-chatCORS READY!!!!!!!!!!!!!!!!");
+});
+
+var ChatContainer = React.createClass({
+    getInitialState: function(){
+        return {myProps: {}, data:[]};
+    },
+    handleChange: function (event){
+        this.setState({data:event.target.value});
+    },
+    render: function(){
+        return (
+            <div id="divChatContainner" className="chatContainner">
+                <div className="chatHistory">
+                    <textarea id="txtChatHistory">
+                    </textarea>
+                </div>
+                <div className="chatMessage">
+                    <input type="text" id="txtMessage" placeholder="Enter message"/>
+                    <input type="button" value="SEND MESSAGE" id="btnSendMessage" />
+                </div>
+            </div>
+        )
+    }
+});
+
+ReactDOM.render(
+    <ChatContainer />,
+    document.getElementById('divChatWrapper')
+    //document.getElementByTagName('body')
+);
